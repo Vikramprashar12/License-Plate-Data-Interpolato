@@ -14,6 +14,10 @@ def show_color_on_hover(event, x, y, flags, param):
 yellow = [0, 255, 255]  # yellow in BGR colorspace
 cap = cv2.VideoCapture(0)
 
+# Set the desired resolution (e.g., 1280x720)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+
 
 # Set the mouse callback function
 cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
