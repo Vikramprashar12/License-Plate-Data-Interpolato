@@ -1,6 +1,6 @@
 path: C:\Users\t2xpl\Documents\Projects\CPS_843_Project\data #Data root directory
 train: train\images #Training images relative to root
-validate: valid\images #Validaate images relative to root
+val: valid\images #Validation images relative to root
 test: test\images #Testing images relative to root
 
 #Classes
