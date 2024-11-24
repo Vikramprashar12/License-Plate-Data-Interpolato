@@ -1,51 +1,74 @@
+from ultralytics import YOLO
 import cv2
 
-from PIL import Image
-
-from util import get_limits
-
-
-def show_color_on_hover(event, x, y, flags, param):
-    if event == cv2.EVENT_MOUSEMOVE:
-        color = frame[y, x]  # Get the BGR color at the cursor position
-        print(f"Color at ({x}, {y}): BGR {color}")
+import util
+from sort.sort import *
+from util import get_car, read_license_plate, write_csv
 
 
-yellow = [0, 255, 255]  # yellow in BGR colorspace
-cap = cv2.VideoCapture(0)
+results = {}
 
-# Set the desired resolution (e.g., 1280x720)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+mot_tracker = Sort()
 
+# load models
+coco_model = YOLO('yolov8n.pt')
+license_plate_detector = YOLO('./models/license_plate_detector.pt')
 
-# Set the mouse callback function
-cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
-cv2.setMouseCallback('frame', show_color_on_hover)
+# load video
+cap = cv2.VideoCapture('./sample.mp4')
 
-while True:
+vehicles = [2, 3, 5, 7]
+
+# read frames
+frame_nmr = -1
+ret = True
+while ret:
+    frame_nmr += 1
     ret, frame = cap.read()
-    frame = cv2.flip(frame, 1)
+    if ret:
+        results[frame_nmr] = {}
+        # detect vehicles
+        detections = coco_model(frame)[0]
+        detections_ = []
+        for detection in detections.boxes.data.tolist():
+            x1, y1, x2, y2, score, class_id = detection
+            if int(class_id) in vehicles:
+                detections_.append([x1, y1, x2, y2, score])
 
-    hsvImage = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    lowerLimit, upperLimit = get_limits(color=yellow)
-    mask = cv2.inRange(hsvImage, lowerLimit, upperLimit)
+        # track vehicles
+        track_ids = mot_tracker.update(np.asarray(detections_))
 
-    mask_ = Image.fromarray(mask)
-    bbox = mask_.getbbox()
+        # detect license plates
+        license_plates = license_plate_detector(frame)[0]
+        for license_plate in license_plates.boxes.data.tolist():
+            x1, y1, x2, y2, score, class_id = license_plate
 
-    if bbox is not None:
-        x1, y1, x2, y2 = bbox
-        frame = cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 5)
+            # assign license plate to car
+            xcar1, ycar1, xcar2, ycar2, car_id = get_car(
+                license_plate, track_ids)
 
-    # Resize the window to match the frame size and allow manual resizing
-    cv2.resizeWindow('frame', frame.shape[1], frame.shape[0])
+            if car_id != -1:
 
-    cv2.imshow("frame", frame)
+                # crop license plate
+                license_plate_crop = frame[int(
+                    y1):int(y2), int(x1): int(x2), :]
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+                # process license plate
+                license_plate_crop_gray = cv2.cvtColor(
+                    license_plate_crop, cv2.COLOR_BGR2GRAY)
+                _, license_plate_crop_thresh = cv2.threshold(
+                    license_plate_crop_gray, 64, 255, cv2.THRESH_BINARY_INV)
 
-cap.release()
+                # read license plate number
+                license_plate_text, license_plate_text_score = read_license_plate(
+                    license_plate_crop_thresh)
 
-cv2.destroyAllWindows()
+                if license_plate_text is not None:
+                    results[frame_nmr][car_id] = {'car': {'bbox': [xcar1, ycar1, xcar2, ycar2]},
+                                                  'license_plate': {'bbox': [x1, y1, x2, y2],
+                                                                    'text': license_plate_text,
+                                                                    'bbox_score': score,
+                                                                    'text_score': license_plate_text_score}}
+
+# write results
+write_csv(results, './test.csv')
