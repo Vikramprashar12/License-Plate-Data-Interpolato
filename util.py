@@ -6,7 +6,7 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Initialize the OCR reader
-reader = easyocr.Reader(['en'], gpu=False, verbose=False)
+reader = easyocr.Reader(['en'], gpu=True, verbose=False)
 
 # Mapping dictionaries for character conversion
 dict_char_to_int = {'O': '0',
