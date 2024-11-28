@@ -76,6 +76,10 @@ while ret:
         for license_plate in license_plates.boxes.data.tolist():
             x1, y1, x2, y2, score, class_id = license_plate
 
+            # assign license plate to car
+            xcar1, ycar1, xcar2, ycar2, car_id = get_car(
+                license_plate, track_ids)
+
             # Draw bounding box for all license plates
             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(
                 y2)), (0, 0, 255), 2)  # Red for license plates
