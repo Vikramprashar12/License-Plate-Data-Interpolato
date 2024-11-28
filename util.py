@@ -1,12 +1,8 @@
 import string
 import easyocr
-import sys
-import io
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Initialize the OCR reader
-reader = easyocr.Reader(['en'], gpu=True, verbose=False)
+reader = easyocr.Reader(['en'], gpu=False)
 
 # Mapping dictionaries for character conversion
 dict_char_to_int = {'O': '0',
@@ -98,8 +94,8 @@ def format_license(text):
         str: Formatted license plate text.
     """
     license_plate_ = ''
-    mapping = {0: dict_int_to_char, 1: dict_int_to_char, 4: dict_char_to_int, 5: dict_char_to_int, 6: dict_char_to_int,
-               2: dict_int_to_char, 3: dict_int_to_char}
+    mapping = {0: dict_int_to_char, 1: dict_int_to_char, 2: dict_int_to_char, 3: dict_int_to_char, 4: dict_char_to_int,
+               5: dict_char_to_int, 6: dict_char_to_int}
     for j in [0, 1, 2, 3, 4, 5, 6]:
         if text[j] in mapping[j].keys():
             license_plate_ += mapping[j][text[j]]
