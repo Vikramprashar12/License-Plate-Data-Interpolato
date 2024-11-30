@@ -77,34 +77,41 @@ while ret:
                 # license_plate_crop = frame[int(y1):int(y2), int(
                 #     x1): int(x2), :]  # Crop license plate
 
-                # Get the image dimensions
-                height, width, _ = frame.shape
+                # # Get the image dimensions
+                # height, width, _ = frame.shape
 
-                # Add 50 pixels to each side
-                buffer = 20
-                x1_buffered = max(0, int(x1) - buffer)
-                y1_buffered = max(0, int(y1) - buffer)
-                x2_buffered = min(width, int(x2) + buffer)
-                y2_buffered = min(height, int(y2) + buffer)
+                # # Add pixels to each side
+                # buffer = 0
+                # x1_buffered = max(0, int(x1) - buffer)
+                # y1_buffered = max(0, int(y1) - buffer)
+                # x2_buffered = min(width, int(x2) + buffer)
+                # y2_buffered = min(height, int(y2) + buffer)
 
-                # Crop with the adjusted buffer
-                license_plate_crop = frame[y1_buffered:y2_buffered,
-                                           x1_buffered:x2_buffered, :]
+                # # Crop with the adjusted buffer
+                # license_plate_crop = frame[y1_buffered:y2_buffered,
+                #                            x1_buffered:x2_buffered, :]
+
+                license_plate_crop = frame[int(y1):int(y2), int(
+                    x1): int(x2), :]  # Crop license plate
 
                 # # Process license plate
                 # license_plate_crop_gray = align_license_plate(
                 #     license_plate_crop)
-                license_plate_crop_gray = cv2.cvtColor(rotate_image_to_align_license_plate(license_plate_crop), cv2.COLOR_BGR2GRAY)
 
-                # # Regular GrayScaling
-                # license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
+                license_plate_crop_gray = rotate_image_to_align_license_plate(
+                    license_plate_crop)
+
+                # # # Regular GrayScaling
+                # # license_plate_crop_gray = cv2.cvtColor(
+                # #     license_plate_crop, cv2.COLOR_BGR2GRAY)
 
                 # # Noise Reduction
                 # license_plate_crop_gray = cv2.medianBlur(
                 #     license_plate_crop_gray, 3)
 
                 # if len(license_plate_crop.shape) == 3:
-                #     license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
+                #     license_plate_crop_gray = cv2.cvtColor(
+                #         license_plate_crop, cv2.COLOR_BGR2GRAY)
                 # else:
                 #     license_plate_crop_gray = license_plate_crop
 
@@ -112,33 +119,36 @@ while ret:
                 # license_plate_crop_gray = license_plate_crop_gray.astype(np.uint8)
 
                 # # Apply histogram equalization
-                # license_plate_crop_gray = cv2.equalizeHist(license_plate_crop_gray)
+                # license_plate_crop_gray = cv2.equalizeHist(
+                #     license_plate_crop_gray)
+                # license_plate_crop_gray = cv2.medianBlur(
+                #     license_plate_crop_gray, 3)
 
-                license_plate_crop_thresh = cv2.adaptiveThreshold(
-                    license_plate_crop_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                    cv2.THRESH_BINARY, 11, 2)
+                # license_plate_crop_thresh = cv2.adaptiveThreshold(
+                #     license_plate_crop_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                #     cv2.THRESH_BINARY, 11, 2)
 
-                # Ensure all images have the same size
-                target_size = (200, 100)
-                resized_crop = cv2.resize(
-                    license_plate_crop, target_size, interpolation=cv2.INTER_AREA)
-                resized_gray = cv2.resize(
-                    license_plate_crop_gray, target_size, interpolation=cv2.INTER_AREA)
-                resized_thresh = cv2.resize(
-                    license_plate_crop_thresh, target_size, interpolation=cv2.INTER_AREA)
+                # # Ensure all images have the same size
+                # target_size = (200, 100)
+                # resized_crop = cv2.resize(
+                #     license_plate_crop, target_size, interpolation=cv2.INTER_AREA)
+                # resized_gray = cv2.resize(
+                #     license_plate_crop_gray, target_size, interpolation=cv2.INTER_AREA)
+                # # resized_thresh = cv2.resize(
+                # #     license_plate_crop_thresh, target_size, interpolation=cv2.INTER_AREA)
 
-                # Convert grayscale and binary images to BGR for consistent visualization
-                gray_bgr = cv2.cvtColor(resized_gray, cv2.COLOR_GRAY2BGR)
-                thresh_bgr = cv2.cvtColor(resized_thresh, cv2.COLOR_GRAY2BGR)
+                # # Convert grayscale and binary images to BGR for consistent visualization
+                # gray_bgr = cv2.cvtColor(resized_gray, cv2.COLOR_GRAY2BGR)
+                # # thresh_bgr = cv2.cvtColor(resized_thresh, cv2.COLOR_GRAY2BGR)
 
-                # Combine all steps into one image
-                combined_view = cv2.hconcat(
-                    [resized_crop, gray_bgr, thresh_bgr])
-                cv2.imshow('License Plate Processing', combined_view)
+                # # Combine all steps into one image
+                # combined_view = cv2.hconcat(
+                #     [resized_crop, gray_bgr])
+                # cv2.imshow('License Plate Processing', combined_view)
 
                 # Read license plate text
                 license_plate_text, license_plate_text_score = read_license_plate(
-                    license_plate_crop_thresh)
+                    license_plate_crop_gray)
                 print(license_plate_text, license_plate_text_score)
 
                 if license_plate_text is not None:
@@ -148,15 +158,15 @@ while ret:
                                                                     'bbox_score': score,
                                                                     'text_score': license_plate_text_score}}
 
-        # Display the frame with all bounding boxes
-        cv2.imshow('Frame with Bounding Boxes', frame)
+        # # Display the frame with all bounding boxes
+        # cv2.imshow('Frame with Bounding Boxes', frame)
 
-        # Pause control
-        key = cv2.waitKey(1)
-        if key == ord('p'):  # Pause if 'p' is pressed
-            pause = True
-        elif key == ord('q'):  # Quit if 'q' is pressed
-            break
+        # # Pause control
+        # key = cv2.waitKey(1)
+        # if key == ord('p'):  # Pause if 'p' is pressed
+        #     pause = True
+        # elif key == ord('q'):  # Quit if 'q' is pressed
+        #     break
 
 # Release resources
 cap.release()
