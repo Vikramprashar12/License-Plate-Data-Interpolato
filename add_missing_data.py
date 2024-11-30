@@ -85,9 +85,19 @@ with open('test.csv', 'r') as file:
 # Interpolate missing data
 interpolated_data = interpolate_bounding_boxes(data)
 
+# Filter out rows where car_id == -1.0
+filtered_data = [row for row in interpolated_data if float(row['car_id']) != -1.0]
+
+# Write updated data to a new CSV file
+# header = ['frame_nmr', 'car_id', 'car_bbox', 'license_plate_bbox', 'license_plate_bbox_score', 'license_number', 'license_number_score']
+# with open('test_interpolated.csv', 'w', newline='') as file:
+#     writer = csv.DictWriter(file, fieldnames=header)
+#     writer.writeheader()
+#     writer.writerows(interpolated_data)
+
 # Write updated data to a new CSV file
 header = ['frame_nmr', 'car_id', 'car_bbox', 'license_plate_bbox', 'license_plate_bbox_score', 'license_number', 'license_number_score']
 with open('test_interpolated.csv', 'w', newline='') as file:
     writer = csv.DictWriter(file, fieldnames=header)
     writer.writeheader()
-    writer.writerows(interpolated_data)
+    writer.writerows(filtered_data)
