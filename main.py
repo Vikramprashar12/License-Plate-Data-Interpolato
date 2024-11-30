@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import util
 from sort.sort import *
-from util import get_car, read_license_plate, write_csv
+from util import *
 
 results = {}
 
@@ -19,18 +19,6 @@ cap = cv2.VideoCapture('./sample.mp4')
 
 vehicles = [2, 3, 5, 7]  # Vehicle class IDs: car, motorcycle, bus, truck
 
-# Create a slider window
-cv2.namedWindow('License Plate Processing')
-
-# Callback for slider (does nothing but is required for the trackbar)
-
-
-def nothing(x):
-    pass
-
-
-# Add a slider to control threshold value
-cv2.createTrackbar('Threshold', 'License Plate Processing', 110, 255, nothing)
 
 # Pause control
 pause = False
@@ -80,52 +68,73 @@ while ret:
             xcar1, ycar1, xcar2, ycar2, car_id = get_car(
                 license_plate, track_ids)
 
-            # Draw bounding box for all license plates
-            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(
-                y2)), (0, 0, 255), 2)  # Red for license plates
+            if car_id != -1:
 
-            license_plate_crop = frame[int(y1):int(y2), int(
-                x1): int(x2), :]  # Crop license plate
+                # Draw bounding box for all license plates
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(
+                    y2)), (0, 0, 255), 2)  # Red for license plates
 
-            # Process license plate
-            license_plate_crop_gray = cv2.cvtColor(
-                license_plate_crop, cv2.COLOR_BGR2GRAY)
+                license_plate_crop = frame[int(y1):int(y2), int(
+                    x1): int(x2), :]  # Crop license plate
 
-            # Get current threshold value from the slider
-            current_threshold = cv2.getTrackbarPos(
-                'Threshold', 'License Plate Processing')
-            _, license_plate_crop_thresh = cv2.threshold(
-                license_plate_crop_gray, 140, 255, cv2.THRESH_BINARY)
+                # Process license plate
+                # license_plate_crop_gray = align_license_plate(
+                #     license_plate_crop)
+                # Regular GrayScaling
+                license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
 
-            # Ensure all images have the same size
-            target_size = (200, 100)
-            resized_crop = cv2.resize(
-                license_plate_crop, target_size, interpolation=cv2.INTER_AREA)
-            resized_gray = cv2.resize(
-                license_plate_crop_gray, target_size, interpolation=cv2.INTER_AREA)
-            resized_thresh = cv2.resize(
-                license_plate_crop_thresh, target_size, interpolation=cv2.INTER_AREA)
+                # Noise Reduction
+                license_plate_crop_gray = cv2.medianBlur(
+                    license_plate_crop_gray, 3)
+                
+                if len(license_plate_crop.shape) == 3:
+                    license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
+                else:
+                    license_plate_crop_gray = license_plate_crop
 
-            # Convert grayscale and binary images to BGR for consistent visualization
-            gray_bgr = cv2.cvtColor(resized_gray, cv2.COLOR_GRAY2BGR)
-            thresh_bgr = cv2.cvtColor(resized_thresh, cv2.COLOR_GRAY2BGR)
+                # Ensure the data type is uint8
+                license_plate_crop_gray = license_plate_crop_gray.astype(np.uint8)
 
-            # Combine all steps into one image
-            combined_view = cv2.hconcat(
-                [resized_crop, gray_bgr, thresh_bgr])
-            cv2.imshow('License Plate Processing', combined_view)
+                # Apply histogram equalization
+                license_plate_crop_gray = cv2.equalizeHist(license_plate_crop_gray)
 
-            # Read license plate text
-            license_plate_text, license_plate_text_score = read_license_plate(
-                license_plate_crop_thresh)
-            print(license_plate_text, license_plate_text_score)
+                # Contrast Enhancement
+                license_plate_crop_gray = cv2.equalizeHist(
+                    license_plate_crop_gray)
 
-            if license_plate_text is not None:
-                results[frame_nmr][car_id] = {'car': {'bbox': [xcar1, ycar1, xcar2, ycar2]},
-                                              'license_plate': {'bbox': [x1, y1, x2, y2],
-                                                                'text': license_plate_text,
-                                                                'bbox_score': score,
-                                                                'text_score': license_plate_text_score}}
+                license_plate_crop_thresh = cv2.adaptiveThreshold(
+                    license_plate_crop_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                    cv2.THRESH_BINARY, 11, 2)
+
+                # Ensure all images have the same size
+                target_size = (200, 100)
+                resized_crop = cv2.resize(
+                    license_plate_crop, target_size, interpolation=cv2.INTER_AREA)
+                resized_gray = cv2.resize(
+                    license_plate_crop_gray, target_size, interpolation=cv2.INTER_AREA)
+                resized_thresh = cv2.resize(
+                    license_plate_crop_thresh, target_size, interpolation=cv2.INTER_AREA)
+
+                # Convert grayscale and binary images to BGR for consistent visualization
+                gray_bgr = cv2.cvtColor(resized_gray, cv2.COLOR_GRAY2BGR)
+                thresh_bgr = cv2.cvtColor(resized_thresh, cv2.COLOR_GRAY2BGR)
+
+                # Combine all steps into one image
+                combined_view = cv2.hconcat(
+                    [resized_crop, gray_bgr, thresh_bgr])
+                cv2.imshow('License Plate Processing', combined_view)
+
+                # Read license plate text
+                license_plate_text, license_plate_text_score = read_license_plate(
+                    license_plate_crop_thresh)
+                print(license_plate_text, license_plate_text_score)
+
+                if license_plate_text is not None:
+                    results[frame_nmr][car_id] = {'car': {'bbox': [xcar1, ycar1, xcar2, ycar2]},
+                                                  'license_plate': {'bbox': [x1, y1, x2, y2],
+                                                                    'text': license_plate_text,
+                                                                    'bbox_score': score,
+                                                                    'text_score': license_plate_text_score}}
 
         # Display the frame with all bounding boxes
         cv2.imshow('Frame with Bounding Boxes', frame)
