@@ -39,7 +39,7 @@ license_plate = {}
 for car_id in np.unique(results['car_id']):
     max_ = np.amax(results[results['car_id'] == car_id]['license_number_score'])
     license_plate[car_id] = {'license_crop': None,
-                             'license_plate_number': results[(results['car_id'] == car_id) &
+                             'license_number': results[(results['car_id'] == car_id) &
                                                              (results['license_number_score'] == max_)]['license_number'].iloc[0]}
     cap.set(cv2.CAP_PROP_POS_FRAMES, results[(results['car_id'] == car_id) &
                                              (results['license_number_score'] == max_)]['frame_nmr'].iloc[0])
@@ -75,34 +75,63 @@ while ret:
             x1, y1, x2, y2 = ast.literal_eval(df_.iloc[row_indx]['license_plate_bbox'].replace('[ ', '[').replace('   ', ' ').replace('  ', ' ').replace(' ', ','))
             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 5)
 
-            # crop license plate
-            license_crop = license_plate[df_.iloc[row_indx]['car_id']]['license_crop']
+            # overlay license plate number below the bounding box
+            car_id = df_.iloc[row_indx]['car_id']
+            license_number = license_plate[car_id]['license_number']
 
-            H, W, _ = license_crop.shape
+            if license_number:
+                (text_width, text_height), _ = cv2.getTextSize(license_number, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)
+                
+                # Ensure the coordinates are integers
+                text_x = int(x1)  # Align text to the left side of the license plate bounding box
+                text_y = int(y2 + text_height + 10)  # Place text below the bounding box with a slight offset
 
-            try:
-                frame[int(car_y1) - H - 100:int(car_y1) - 100,
-                      int((car_x2 + car_x1 - W) / 2):int((car_x2 + car_x1 + W) / 2), :] = license_crop
-
-                frame[int(car_y1) - H - 400:int(car_y1) - H - 100,
-                      int((car_x2 + car_x1 - W) / 2):int((car_x2 + car_x1 + W) / 2), :] = (255, 255, 255)
-
-                (text_width, text_height), _ = cv2.getTextSize(
-                    license_plate[df_.iloc[row_indx]['car_id']]['license_plate_number'],
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    4.3,
-                    17)
+                # Get text size for creating the background rectangle
+                (text_width, text_height), _ = cv2.getTextSize(license_number, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)
+    
+                # Draw a white rectangle as a background for the text
+                cv2.rectangle(frame,
+                            (text_x, text_y - text_height - 10),  # Top-left corner of the rectangle
+                            (text_x + text_width, text_y + 5),    # Bottom-right corner of the rectangle
+                            (255, 255, 255),                      # White color
+                            -1)                                   # Thickness -1 means filled
 
                 cv2.putText(frame,
-                            license_plate[df_.iloc[row_indx]['car_id']]['license_plate_number'],
-                            (int((car_x2 + car_x1 - text_width) / 2), int(car_y1 - H - 250 + (text_height / 2))),
+                            license_number,
+                            (text_x, text_y),
                             cv2.FONT_HERSHEY_SIMPLEX,
-                            4.3,
+                            1.2,  # Reduced text size
                             (0, 0, 0),
-                            17)
+                            3)
+            
+            # # crop license plate
+            # license_crop = license_plate[df_.iloc[row_indx]['car_id']]['license_crop']
 
-            except:
-                pass
+            # H, W, _ = license_crop.shape
+
+            # try:
+            #     frame[int(car_y1) - H - 100:int(car_y1) - 100,
+            #           int((car_x2 + car_x1 - W) / 2):int((car_x2 + car_x1 + W) / 2), :] = license_crop
+
+            #     frame[int(car_y1) - H - 400:int(car_y1) - H - 100,
+            #           int((car_x2 + car_x1 - W) / 2):int((car_x2 + car_x1 + W) / 2), :] = (255, 255, 255)
+
+            #     (text_width, text_height), _ = cv2.getTextSize(
+            #         license_plate[df_.iloc[row_indx]['car_id']]['license_number'],
+            #         cv2.FONT_HERSHEY_SIMPLEX,
+            #         4.3,
+            #         17)
+
+            #     cv2.putText(frame,
+            #                 license_plate[df_.iloc[row_indx]['car_id']]['license_number'],
+            #                 (int((car_x2 + car_x1 - text_width) / 2), int(car_y1 - H - 250 + (text_height / 2))),
+            #                 cv2.FONT_HERSHEY_SIMPLEX,
+            #                 4.3,
+            #                 (0, 0, 0),
+            #                 17)
+
+            # except:
+            #     pass
 
         out.write(frame)
         frame = cv2.resize(frame, (1280, 720))
