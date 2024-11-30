@@ -74,33 +74,45 @@ while ret:
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(
                     y2)), (0, 0, 255), 2)  # Red for license plates
 
-                license_plate_crop = frame[int(y1):int(y2), int(
-                    x1): int(x2), :]  # Crop license plate
+                # license_plate_crop = frame[int(y1):int(y2), int(
+                #     x1): int(x2), :]  # Crop license plate
 
-                # Process license plate
+                # Get the image dimensions
+                height, width, _ = frame.shape
+
+                # Add 50 pixels to each side
+                buffer = 20
+                x1_buffered = max(0, int(x1) - buffer)
+                y1_buffered = max(0, int(y1) - buffer)
+                x2_buffered = min(width, int(x2) + buffer)
+                y2_buffered = min(height, int(y2) + buffer)
+
+                # Crop with the adjusted buffer
+                license_plate_crop = frame[y1_buffered:y2_buffered,
+                                           x1_buffered:x2_buffered, :]
+
+                # # Process license plate
                 # license_plate_crop_gray = align_license_plate(
                 #     license_plate_crop)
-                # Regular GrayScaling
-                license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
+                license_plate_crop_gray = cv2.cvtColor(rotate_image_to_align_license_plate(license_plate_crop), cv2.COLOR_BGR2GRAY)
 
-                # Noise Reduction
-                license_plate_crop_gray = cv2.medianBlur(
-                    license_plate_crop_gray, 3)
-                
-                if len(license_plate_crop.shape) == 3:
-                    license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
-                else:
-                    license_plate_crop_gray = license_plate_crop
+                # # Regular GrayScaling
+                # license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
 
-                # Ensure the data type is uint8
-                license_plate_crop_gray = license_plate_crop_gray.astype(np.uint8)
+                # # Noise Reduction
+                # license_plate_crop_gray = cv2.medianBlur(
+                #     license_plate_crop_gray, 3)
 
-                # Apply histogram equalization
-                license_plate_crop_gray = cv2.equalizeHist(license_plate_crop_gray)
+                # if len(license_plate_crop.shape) == 3:
+                #     license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
+                # else:
+                #     license_plate_crop_gray = license_plate_crop
 
-                # Contrast Enhancement
-                license_plate_crop_gray = cv2.equalizeHist(
-                    license_plate_crop_gray)
+                # # Ensure the data type is uint8
+                # license_plate_crop_gray = license_plate_crop_gray.astype(np.uint8)
+
+                # # Apply histogram equalization
+                # license_plate_crop_gray = cv2.equalizeHist(license_plate_crop_gray)
 
                 license_plate_crop_thresh = cv2.adaptiveThreshold(
                     license_plate_crop_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,

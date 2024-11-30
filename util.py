@@ -13,16 +13,14 @@ dict_char_to_int = {'O': '0',
                     'J': '3',
                     'A': '4',
                     'G': '6',
-                    'S': '5',
-                    'Z': '2'}
+                    'S': '5', }
 
 dict_int_to_char = {'0': 'O',
                     '1': 'I',
                     '3': 'J',
                     '4': 'A',
                     '6': 'G',
-                    '5': 'S',
-                    '2': 'Z'}
+                    '5': 'S', }
 
 
 def write_csv(results, output_path):
@@ -73,8 +71,8 @@ def license_complies_format(text):
     Returns:
         bool: True if the license plate complies with the format, False otherwise.
     """
-    # if len(text) != 7:
-    #     return False
+    if len(text) != 7:
+        return False
 
     if (text[0] in string.ascii_uppercase or text[0] in dict_int_to_char.keys()) and \
        (text[1] in string.ascii_uppercase or text[1] in dict_int_to_char.keys()) and \
@@ -129,9 +127,8 @@ def read_license_plate(license_plate_crop):
 
         text = text.upper().replace(' ', '')
 
-        # if license_complies_format(text):
-        #     return format_license(text), score
-        return text, score
+        if license_complies_format(text):
+            return format_license(text), score
 
     return None, None
 
@@ -185,7 +182,7 @@ def align_license_plate(image):
 
     # Step 2: Apply edge detection
 
-    edges = cv2.Canny(gray, 50, 150)  # Initial thresholds
+    edges = cv2.Canny(gray, 150, 200)  # Initial thresholds
     cv2.imshow("Canny Edges - Initial", edges)
     cv2.waitKey(0)
 
@@ -263,3 +260,66 @@ def align_license_plate(image):
     cv2.imshow("Step 7: Original Image (No Alignment)", image)
     cv2.waitKey(0)
     return image
+
+
+def rotate_image_to_align_license_plate(image):
+    """
+    Detects the top or bottom edge of the license plate, calculates the angle,
+    and rotates the image to align the license plate horizontally.
+
+    Args:
+        image (np.ndarray): Input image (BGR).
+
+    Returns:
+        np.ndarray: Rotated image.
+    """
+    # Step 1: Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Step 2: Apply edge detection
+    edges = cv2.Canny(gray, 50, 150)
+    # cv2.imshow("Edges", edges)
+    # cv2.waitKey(0)
+
+    # Step 3: Detect lines using Hough Line Transform
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180,
+                            threshold=100, minLineLength=50, maxLineGap=10)
+
+    if lines is not None:
+        # Step 4: Select the longest line as the reference
+        longest_line = max(lines, key=lambda line: np.linalg.norm(
+            (line[0][0] - line[0][2], line[0][1] - line[0][3])))
+        x1, y1, x2, y2 = longest_line[0]
+
+        # Draw the detected line for debugging
+        debug_image = image.copy()
+        # cv2.line(debug_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        # cv2.imshow("Detected Line", debug_image)
+        # cv2.waitKey(0)
+
+        # Step 5: Calculate the angle of rotation
+        delta_y = y2 - y1
+        delta_x = x2 - x1
+        angle = np.degrees(np.arctan2(delta_y, delta_x))
+
+        print(f"Rotation angle: {angle:.2f} degrees")
+
+        # Step 6: Rotate the image
+        (h, w) = image.shape[:2]
+        center = (w // 2, h // 2)
+        rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (w, h))
+
+        # # Show the rotated image
+        # cv2.imshow("Rotated Image", rotated_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        return rotated_image
+
+    else:
+        # print("No lines detected!")
+        # cv2.imshow("Original Image", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        return image
