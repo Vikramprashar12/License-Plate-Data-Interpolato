@@ -97,7 +97,7 @@ filtered_data = [row for row in interpolated_data if float(row['car_id']) != -1.
 
 # Write updated data to a new CSV file
 header = ['frame_nmr', 'car_id', 'car_bbox', 'license_plate_bbox', 'license_plate_bbox_score', 'license_number', 'license_number_score']
-with open('test_interpolated.csv', 'w', newline='') as file:
+with open('interpolated.csv', 'w', newline='') as file:
     writer = csv.DictWriter(file, fieldnames=header)
     writer.writeheader()
     writer.writerows(filtered_data)
