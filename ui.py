@@ -110,7 +110,7 @@ def play_output_video():
     # Set canvas and window size based on video dimensions while maintaining a fixed width of 700 pixels
     canvas_width = 700
     canvas_height = int(canvas_width * 9 / 16)  # Maintain 16:9 aspect ratio
-    window_height_above_video = 250  # Estimated height of UI elements above video
+    window_height_above_video = 400  # Estimated height of UI elements above video
     total_window_height = canvas_height + window_height_above_video
 
     # Set window size to fit the video and UI elements
