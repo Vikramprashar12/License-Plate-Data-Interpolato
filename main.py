@@ -15,7 +15,11 @@ coco_model = YOLO('yolov8n.pt')  # Model for general object detection
 license_plate_detector = YOLO('./models/license_plate_detector.pt')
 
 # Load video
-cap = cv2.VideoCapture('./sample.mp4')
+# cap = cv2.VideoCapture('./sample.mp4')
+with open("video_path.txt", "r") as file:
+    video_path = file.read().strip()
+
+cap = cv2.VideoCapture(video_path)
 
 vehicles = [2, 3, 5, 7]  # Vehicle class IDs: car, motorcycle, bus, truck
 
