@@ -1,9 +1,14 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import tkinter.ttk as ttk
 import subprocess
 import cv2
 from PIL import Image, ImageTk
 import os
+import threading
+
+# Declare the global variable to store the thread reference
+processing_thread = None
 
 # Function to select video file and display its information
 def select_video():
@@ -44,52 +49,77 @@ def get_video_info(video_path):
 
 # Function to run the processing pipeline
 def run_pipeline():
+    global processing_thread  # Use the global variable
+    if processing_thread:
+        return
+
+    process_button.config(state=tk.DISABLED)
+    select_button.config(state=tk.DISABLED)
+    status_label.config(text="Processing video...")
+    progress['value'] = 0
+    progress.update_idletasks()
+
+    # Start the processing thread
+    processing_thread = threading.Thread(target=run_pipeline_thread)
+    processing_thread.start()
+
+# Function to run the pipeline in a separate thread
+def run_pipeline_thread():
     try:
-        # Run main.py
+        update_progress(10, "Running main.py...")
         subprocess.run(["python", "main.py"], check=True)
-        update_progress(30)
 
-        # Run add_missing_data.py
+        update_progress(40, "Running add_missing_data.py...")
         subprocess.run(["python", "interpolate.py"], check=True)
-        update_progress(60)
 
-        # Run visualize.py
+        update_progress(70, "Running visualize.py...")
         subprocess.run(["python", "visualize.py"], check=True)
-        update_progress(100)
 
-        # Play the output video in the tkinter window
-        output_file = "out.mp4"
-        if os.path.exists(output_file):
-            play_video(output_file)
-        else:
-            messagebox.showerror("File Not Found", f"{output_file} was not generated.")
+        update_progress(100, "Video processing completed.")
+        play_output_video()
 
     except subprocess.CalledProcessError as e:
         messagebox.showerror("Error", f"An error occurred while running the pipeline:\n{str(e)}")
+        update_progress(0, "An error occurred.")
+    finally:
+        global processing_thread
+        processing_thread = None  # Reset thread reference to allow another run
+        process_button.config(state=tk.NORMAL)
+        select_button.config(state=tk.NORMAL)
 
-# Function to update progress bar
-def update_progress(value):
-    progress_var.set(value)
+# Function to update progress bar and status label
+def update_progress(value, status_text):
+    progress['value'] = value
+    status_label.config(text=status_text)
     root.update_idletasks()
 
 # Function to play the output video in the tkinter window
-def play_video(video_path):
-    cap = cv2.VideoCapture(video_path)
+def play_output_video():
+    output_file = "out.mp4"
+    if not os.path.exists(output_file):
+        messagebox.showerror("File Not Found", f"{output_file} was not generated.")
+        return
 
+    cap = cv2.VideoCapture(output_file)
     if not cap.isOpened():
         messagebox.showerror("Error", "Could not open the output video.")
         return
 
     replay_button.pack_forget()  # Hide the replay button if visible
 
+    # Set canvas and window size based on video dimensions while maintaining a fixed width of 700 pixels
+    canvas_width = 700
+    canvas_height = int(canvas_width * 9 / 16)  # Maintain 16:9 aspect ratio
+    window_height_above_video = 250  # Estimated height of UI elements above video
+    total_window_height = canvas_height + window_height_above_video
+
+    # Set window size to fit the video and UI elements
+    root.geometry(f"{canvas_width}x{total_window_height}")
+
     def update_frame():
         ret, frame = cap.read()
         if ret:
-            # Get the canvas dimensions while maintaining 16:9 aspect ratio
-            canvas_width = canvas.winfo_width()
-            canvas_height = int(canvas_width * 9 / 16)
-
-            # Resize the frame to fit the canvas dimensions
+            # Resize the frame to fit the canvas dimensions while maintaining 16:9 aspect ratio
             frame_resized = cv2.resize(frame, (canvas_width, canvas_height), interpolation=cv2.INTER_AREA)
 
             # Convert frame to RGB for displaying in tkinter
@@ -107,9 +137,7 @@ def play_video(video_path):
             cap.release()
             replay_button.pack(pady=10)  # Show the replay button when video ends
 
-    # Set the canvas dimensions to maintain a 16:9 aspect ratio
-    canvas_width = root.winfo_width()
-    canvas_height = int(canvas_width * 9 / 16)  # 16:9 aspect ratio
+    # Set the canvas dimensions to match the fixed width and maintain 16:9 aspect ratio
     canvas.config(width=canvas_width, height=canvas_height)
 
     # Start updating frames
@@ -117,16 +145,11 @@ def play_video(video_path):
 
 # Function to replay the output video
 def replay_video():
-    output_file = "out.mp4"
-    if os.path.exists(output_file):
-        play_video(output_file)
+    play_output_video()
 
 # Create the UI
 root = tk.Tk()
 root.title("License Plate Detector")
-
-# Set window size
-root.geometry("800x600")
 
 # Title Label
 title_label = tk.Label(root, text="License Plate Detector", font=("Helvetica", 16, "bold"), pady=10)
@@ -157,15 +180,17 @@ process_button = tk.Button(root, text="Process Video", command=run_pipeline, pad
 process_button.pack(pady=10)
 
 # Progress Bar
-progress_var = tk.IntVar()
-progress_bar = tk.Label(root, text="Progress", font=("Helvetica", 12), pady=5)
-progress_bar.pack()
-progress = tk.Scale(root, variable=progress_var, from_=0, to=100, orient="horizontal", length=400)
+progress = ttk.Progressbar(root, mode='determinate', length=400)
 progress.pack(pady=10)
 
+status_label = tk.Label(root, text="", font=("Helvetica", 10))
+status_label.pack()
+
 # Create a canvas to display the video
-canvas = tk.Canvas(root, width=800, height=int(800 * 9 / 16))  # Maintain 16:9 aspect ratio
-canvas.pack(fill=tk.BOTH, expand=True)
+canvas_width = 700
+canvas_height = int(canvas_width * 9 / 16)
+canvas = tk.Canvas(root, width=canvas_width, height=canvas_height)  # Maintain 16:9 aspect ratio
+canvas.pack()
 
 # Replay Button
 replay_button = tk.Button(root, text="Replay Video", command=replay_video, padx=20, pady=5)
