@@ -1,12 +1,11 @@
 import string
 import easyocr
-import sys
-import io
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+import re
+import cv2
+import numpy as np
 
 # Initialize the OCR reader
-reader = easyocr.Reader(['en'], gpu=True, verbose=False)
+reader = easyocr.Reader(['en'], gpu=False)
 
 # Mapping dictionaries for character conversion
 dict_char_to_int = {'O': '0',
@@ -14,14 +13,14 @@ dict_char_to_int = {'O': '0',
                     'J': '3',
                     'A': '4',
                     'G': '6',
-                    'S': '5'}
+                    'S': '5', }
 
 dict_int_to_char = {'0': 'O',
                     '1': 'I',
                     '3': 'J',
                     '4': 'A',
                     '6': 'G',
-                    '5': 'S'}
+                    '5': 'S', }
 
 
 def write_csv(results, output_path):
@@ -72,8 +71,8 @@ def license_complies_format(text):
     Returns:
         bool: True if the license plate complies with the format, False otherwise.
     """
-    if len(text) != 7:
-        return False
+    # if len(text) != 7:
+    #     return False
 
     if (text[0] in string.ascii_uppercase or text[0] in dict_int_to_char.keys()) and \
        (text[1] in string.ascii_uppercase or text[1] in dict_int_to_char.keys()) and \
@@ -98,9 +97,9 @@ def format_license(text):
         str: Formatted license plate text.
     """
     license_plate_ = ''
-    mapping = {0: dict_int_to_char, 1: dict_int_to_char, 4: dict_char_to_int, 5: dict_char_to_int, 6: dict_char_to_int,
-               2: dict_int_to_char, 3: dict_int_to_char}
-    for j in [0, 1, 2, 3, 4, 5, 6]:
+    mapping = {0: dict_int_to_char, 1: dict_int_to_char, 2: dict_int_to_char, 3: dict_int_to_char, 4: dict_char_to_int,
+               5: dict_char_to_int, 6: dict_char_to_int}
+    for j in range(len(text)):
         if text[j] in mapping[j].keys():
             license_plate_ += mapping[j][text[j]]
         else:
@@ -124,11 +123,12 @@ def read_license_plate(license_plate_crop):
 
     for detection in detections:
         bbox, text, score = detection
-
         text = text.upper().replace(' ', '')
+        text = re.sub(r'[^a-zA-Z0-9]', '', text)
 
-        if license_complies_format(text):
-            return format_license(text), score
+        # if license_complies_format(text):
+        #     return format_license(text), score
+        return text, score
 
     return None, None
 
@@ -159,3 +159,167 @@ def get_car(license_plate, vehicle_track_ids):
         return vehicle_track_ids[car_indx]
 
     return -1, -1, -1, -1, -1
+
+
+def align_license_plate(image):
+    """
+    Aligns the license plate image horizontally, with debugging visualizations.
+
+    Args:
+        image (np.ndarray): Cropped license plate image (BGR).
+
+    Returns:
+        np.ndarray: Deskewed, aligned license plate image.
+    """
+    # Step 1: Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    cv2.imshow("Step 1: Grayscale Image", gray)
+    cv2.waitKey(0)
+
+    gray = cv2.equalizeHist(gray)
+    cv2.imshow("Enhanced Grayscale Image", gray)
+    cv2.waitKey(0)
+
+    # Step 2: Apply edge detection
+
+    edges = cv2.Canny(gray, 150, 200)  # Initial thresholds
+    cv2.imshow("Canny Edges - Initial", edges)
+    cv2.waitKey(0)
+
+    edges = cv2.Canny(gray, 30, 100)  # Lower thresholds
+    cv2.imshow("Canny Edges - Lower Thresholds", edges)
+    cv2.waitKey(0)
+
+    # edges = cv2.Canny(gray, 50, 150)
+    # cv2.imshow("Step 2: Edge Detection", edges)
+    # cv2.waitKey(0)
+
+    # Step 3: Find contours
+    contours, _ = cv2.findContours(
+        edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    debug_image = image.copy()
+    cv2.drawContours(debug_image, contours, -1,
+                     (0, 255, 0), 2)  # Draw all contours
+    cv2.imshow("Step 3: Contours", debug_image)
+    cv2.waitKey(0)
+
+    # Step 4: Sort and approximate contours
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    for contour in contours:
+        epsilon = 0.02 * cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, epsilon, True)
+
+        # Step 5: Check for a 4-corner contour
+        if len(approx) == 4:
+            debug_image = image.copy()
+            # Highlight the license plate
+            cv2.drawContours(debug_image, [approx], -1, (0, 0, 255), 3)
+            cv2.imshow("Step 4: Detected Polygon", debug_image)
+            cv2.waitKey(0)
+
+            # Step 6: Perspective transformation
+            rect = np.zeros((4, 2), dtype="float32")
+            pts = approx.reshape(4, 2)
+
+            # Order points: top-left, top-right, bottom-right, bottom-left
+            s = pts.sum(axis=1)
+            diff = np.diff(pts, axis=1)
+            rect[0] = pts[np.argmin(s)]    # Top-left
+            rect[2] = pts[np.argmax(s)]    # Bottom-right
+            rect[1] = pts[np.argmin(diff)]  # Top-right
+            rect[3] = pts[np.argmax(diff)]  # Bottom-left
+
+            # Show ordered points
+            print("Ordered Points:", rect)
+
+            # Compute dimensions for the new image
+            width_top = np.linalg.norm(rect[1] - rect[0])
+            width_bottom = np.linalg.norm(rect[2] - rect[3])
+            height_left = np.linalg.norm(rect[0] - rect[3])
+            height_right = np.linalg.norm(rect[1] - rect[2])
+            max_width = int(max(width_top, width_bottom))
+            max_height = int(max(height_left, height_right))
+
+            # Define destination rectangle
+            dst = np.array([
+                [0, 0],
+                [max_width - 1, 0],
+                [max_width - 1, max_height - 1],
+                [0, max_height - 1]
+            ], dtype="float32")
+
+            # Perspective transformation
+            M = cv2.getPerspectiveTransform(rect, dst)
+            aligned = cv2.warpPerspective(image, M, (max_width, max_height))
+            cv2.imshow("Step 6: Aligned License Plate", aligned)
+            cv2.waitKey(0)
+            return aligned
+
+    # Step 7: If no valid contour is found
+    print("No valid license plate detected.")
+    cv2.imshow("Step 7: Original Image (No Alignment)", image)
+    cv2.waitKey(0)
+    return image
+
+
+def rotate_image_to_align_license_plate(image):
+    """
+    Detects the top or bottom edge of the license plate, calculates the angle,
+    and rotates the image to align the license plate horizontally.
+
+    Args:
+        image (np.ndarray): Input image (BGR).
+
+    Returns:
+        np.ndarray: Rotated image.
+    """
+    # Step 1: Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Step 2: Apply edge detection
+    edges = cv2.Canny(gray, 50, 150)
+    # cv2.imshow("Edges", edges)
+    # cv2.waitKey(0)
+
+    # Step 3: Detect lines using Hough Line Transform
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180,
+                            threshold=100, minLineLength=50, maxLineGap=10)
+
+    if lines is not None:
+        # Step 4: Select the longest line as the reference
+        longest_line = max(lines, key=lambda line: np.linalg.norm(
+            (line[0][0] - line[0][2], line[0][1] - line[0][3])))
+        x1, y1, x2, y2 = longest_line[0]
+
+        # Draw the detected line for debugging
+        debug_image = image.copy()
+        # cv2.line(debug_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        # cv2.imshow("Detected Line", debug_image)
+        # cv2.waitKey(0)
+
+        # Step 5: Calculate the angle of rotation
+        delta_y = y2 - y1
+        delta_x = x2 - x1
+        angle = np.degrees(np.arctan2(delta_y, delta_x))
+
+        print(f"Rotation angle: {angle:.2f} degrees")
+
+        # Step 6: Rotate the image
+        (h, w) = image.shape[:2]
+        center = (w // 2, h // 2)
+        rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (w, h))
+
+        # # Show the rotated image
+        # cv2.imshow("Rotated Image", rotated_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        return rotated_image
+
+    else:
+        # print("No lines detected!")
+        # cv2.imshow("Original Image", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        return image

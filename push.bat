@@ -1,11 +1,11 @@
 @echo off
-REM Batch script to automate git push to Vikram branch
+REM Batch script to automate git push to Hayaan's branch
 
 REM Navigate to your repository's directory
-cd /d "C:\Users\Vikram Prashar\OneDrive - Toronto Metropolitan University\Documents\Coding Adventures\CPS_843_Project"
+cd /d "C:\Users\t2xpl\Documents\Projects\CPS_843_Project"
 
-REM Check out the Vikram branch
-git checkout Vikram
+REM Check out the Hayaan branch
+git checkout Hayaan
 
 REM Stage all changes
 git add .
@@ -14,8 +14,9 @@ REM Commit changes with a message
 set /p commitMsg="Enter commit message:"
 git commit -m "%commitMsg%"
 
-REM Push changes to the Vikram branch
-git push origin Vikram
+REM Push changes to the Hayaan branch
+git push origin Hayaan
 
 REM Confirm completion
-echo Changes have been pushed to the Vikram branch.
+echo Changes have been pushed to the Hayaan branch.
+pause
