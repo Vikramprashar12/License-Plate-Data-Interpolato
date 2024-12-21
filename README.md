@@ -16,7 +16,7 @@ Accurate license plate recognition is essential for traffic management, law enfo
 - **YOLO Pretrained Model (`yolov8n.pt`)**: Used for general object detection.
 - **Custom License Plate Detection Model (`license_plate_detector.pt`)**: Trained for detecting license plates.
 
-The input is a video file specified in `video_path.txt`.
+The input is a video file specified when running the ui.py program via the batch file.
 
 ## Code Explanation
 
@@ -48,10 +48,6 @@ The input is a video file specified in `video_path.txt`.
    - Store vehicle and license plate details in a dictionary (`results`).
    - Save results to a CSV file (`test.csv`).
 
-8. **Interactive Controls**:
-   - `p`: Pause video processing.
-   - `q`: Quit video processing.
-
 ### Output
 - Visualized bounding boxes for detected vehicles and license plates.
 - Combined view of license plate processing steps.
@@ -65,4 +61,6 @@ The input is a video file specified in `video_path.txt`.
 ### Prerequisites
 - Install required Python libraries:
   ```bash
-  pip install ultralytics opencv-python numpy
+  pip install -r requirements.txt
+  ```
+- Double click on the Run.bat file which will launch the ui.py functionality. 
